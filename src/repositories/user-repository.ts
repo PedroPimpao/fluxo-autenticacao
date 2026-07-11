@@ -1,26 +1,39 @@
-// Repositório conversa com o DB
-import { hash } from "bcryptjs";
-import { db } from "../utils/prisma";
+import { db } from '../utils/prisma.js'
 
-interface ICreateUser {
-    name: string
-    email: string
-    password: string
+export interface UserRecord {
+  id: string
+  name: string
+  email: string
+  hashPassword: string
 }
 
-export class UserRepository {
-    async getUsers(){
-        return await db.user.findMany({})
-    }
+export interface CreateUserData {
+  name: string
+  email: string
+  hashPassword: string
+}
 
-    async createUser({ name, email, password }: ICreateUser){
-        const hashPassword = await hash(password, 12)
-        await db.user.create({
-            data: {
-                name: name,
-                email: email,
-                hashPassword: hashPassword
-            }
-        })
-    }
+export interface IUserRepository {
+  findAll(): Promise<UserRecord[]>
+  findByEmail(email: string): Promise<UserRecord | null>
+  findById(id: string): Promise<UserRecord | null>
+  create(data: CreateUserData): Promise<UserRecord>
+}
+
+export class UserRepository implements IUserRepository {
+  findAll() {
+    return db.user.findMany()
+  }
+
+  findByEmail(email: string) {
+    return db.user.findUnique({ where: { email } })
+  }
+
+  findById(id: string) {
+    return db.user.findUnique({ where: { id } })
+  }
+
+  create(data: CreateUserData) {
+    return db.user.create({ data })
+  }
 }

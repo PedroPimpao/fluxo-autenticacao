@@ -1,19 +1,22 @@
-// Controller conversa com as requisições http
-import { UserRepository } from "../repositories/user-repository";
-import type { IHttp } from "../types/http-type";
 import type { Request, Response } from 'express'
-
-const userRepository = new UserRepository()
+import type { UserService } from '../services/user-service.js'
 
 export class UserController {
-    async getAll(req: Request, res: Response){
-        const users = await userRepository.getUsers()
-        return res.status(200).json(users)
+  constructor(private readonly userService: UserService) {}
+
+  getAll = async (_req: Request, res: Response) => {
+    const users = await this.userService.list()
+    return res.status(200).json(users)
+  }
+
+  create = async (req: Request, res: Response) => {
+    const { name, email, password } = req.body as {
+      name: string
+      email: string
+      password: string
     }
 
-    async create(req: Request, res: Response){
-        const { name, email, password } = req.body
-        await userRepository.createUser({ name, email, password })
-        return res.status(201).json({ message: 'Usuário criado com sucesso!' })
-    }
+    await this.userService.create({ name, email, password })
+    return res.status(201).json({ message: 'Usuário criado com sucesso!' })
+  }
 }
