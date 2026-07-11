@@ -1,6 +1,7 @@
 export type AppErrorCode =
   | 'VALIDATION_ERROR'
   | 'USER_NOT_FOUND'
+  | 'TASK_NOT_FOUND'
   | 'INVALID_CREDENTIALS'
   | 'EMAIL_ALREADY_EXISTS'
 

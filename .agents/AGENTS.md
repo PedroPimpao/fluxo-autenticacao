@@ -17,7 +17,7 @@ Este repositório contém uma API REST simples de autenticação e usuários, im
 - bcryptjs para hash de senhas;
 - JSON Web Token para autenticação.
 
-O schema possui os modelos `User` e `Tarefa`. No momento documentado, somente usuários e autenticação possuem endpoints. Não invente uma API para tarefas sem uma solicitação explícita.
+O schema possui os modelos `User` e `Tarefa`. A API implementa autenticação, usuários e um CRUD autenticado de tarefas. Toda tarefa pertence a um usuário e somente seu proprietário pode acessá-la ou modificá-la.
 
 ## Fonte de verdade
 
@@ -84,6 +84,7 @@ Os services previstos para os fluxos atuais são:
 
 - `UserService`: criação e listagem de usuários;
 - `AuthService`: autenticação, comparação de senha e emissão do JWT.
+- `TaskService`: criação, listagem, consulta, atualização, exclusão e verificação de propriedade de tarefas.
 
 ### Repository
 
@@ -109,6 +110,8 @@ O `UserRepository` deve concentrar as operações Prisma de usuário, como:
 - `findByEmail(email)`;
 - `findById(id)`, quando o caso de uso exigir;
 - `create(data)`.
+
+O `TaskRepository` deve concentrar as operações Prisma de tarefas. Consultas, atualizações e exclusões individuais devem considerar `userId` para preservar a propriedade também na camada de dados.
 
 ### Rotas e middlewares
 
@@ -344,12 +347,83 @@ Regras do fluxo:
 - `hashPassword` nunca deve aparecer na listagem;
 - não adicione paginação, filtros, papéis ou novas regras de autorização sem solicitação.
 
+### Contrato comum das tarefas
+
+Todas as rotas `/tasks` exigem:
+
+```http
+Authorization: Bearer <token-jwt>
+```
+
+O `userId` deve vir exclusivamente do JWT. Nunca aceite `userId` pelo corpo, query string ou parâmetro como identidade do proprietário.
+
+Formato de tarefa:
+
+```json
+{
+  "id": "uuid",
+  "title": "Estudar TypeScript",
+  "description": "Revisar a camada Service",
+  "status": "pendente",
+  "userId": "uuid-do-usuario"
+}
+```
+
+`title`, `description` e `status` são strings obrigatórias e não vazias. O schema atual não restringe `status` a um enum; não invente valores permitidos sem uma mudança de contrato solicitada.
+
+Uma tarefa inexistente ou pertencente a outro usuário deve produzir a mesma resposta, evitando revelar sua existência:
+
+```http
+404 Not Found
+```
+
+```json
+{
+  "message": "Tarefa não encontrada"
+}
+```
+
+Um `:id` que não seja UUID válido retorna `400 Bad Request`.
+
+### `POST /tasks`
+
+Cria uma tarefa para o usuário autenticado.
+
+Corpo:
+
+```json
+{
+  "title": "Estudar TypeScript",
+  "description": "Revisar a camada Service",
+  "status": "pendente"
+}
+```
+
+Resposta: `201 Created` com a tarefa criada.
+
+### `GET /tasks`
+
+Retorna `200 OK` com uma lista contendo somente as tarefas do usuário autenticado.
+
+### `GET /tasks/:id`
+
+Retorna `200 OK` com a tarefa quando ela pertence ao usuário autenticado.
+
+### `PUT /tasks/:id`
+
+Substitui os campos editáveis de uma tarefa do usuário autenticado. O corpo completo exige `title`, `description` e `status`. Retorna `200 OK` com a tarefa atualizada.
+
+### `DELETE /tasks/:id`
+
+Exclui uma tarefa do usuário autenticado e retorna `204 No Content`.
+
 ## Dados e segurança
 
 - Nunca devolva `hashPassword`, senha em texto puro, `SECRET` ou credenciais do banco.
 - Nunca leia ou exiba os valores reais do arquivo `.env` sem necessidade explícita e autorização adequada.
 - Use bcrypt para gerar e comparar hashes; a persistência recebe apenas o hash.
 - Não use dados enviados pelo cliente como identidade autenticada quando essa identidade deve vir do JWT.
+- Nunca permita que um usuário consulte, atualize ou exclua tarefas de outro usuário.
 - Valide o esquema `Bearer` do cabeçalho de autorização durante a correção do middleware.
 - Mantenha o segredo JWT fora do módulo de inicialização do Express.
 - Não exponha detalhes internos do Prisma em respostas de erro.
@@ -425,7 +499,7 @@ Não apresente a compilação ou os testes como aprovados se eles não foram exe
 - não colocar bcrypt ou JWT em repositories;
 - não acoplar services ao Express;
 - não alterar endpoints ou formatos de entrada sem pedido explícito;
-- não criar endpoints de tarefas apenas porque o modelo existe;
+- não criar rotas adicionais de tarefas ou alterar seus contratos sem solicitação;
 - não criar abstrações especulativas ou arquivos sem uso;
 - não alterar migrations existentes para representar uma mudança nova;
 - não incluir segredos, hashes ou credenciais em logs, respostas, testes ou documentação;

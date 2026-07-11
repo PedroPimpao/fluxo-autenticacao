@@ -788,6 +788,83 @@ Os testes unitários usam repositories em memória e cobrem:
 
 Os comandos de verificação são `npm run build` e `npm test`.
 
+## 19. CRUD de tarefas
+
+### Arquitetura
+
+O CRUD de tarefas segue o mesmo fluxo das demais funcionalidades:
+
+```text
+Rota -> AuthMiddleware -> Validação -> TaskController -> TaskService -> TaskRepository -> Prisma
+```
+
+- `TaskController` trata requisições e respostas HTTP.
+- `TaskService` normaliza dados e garante que a tarefa pertence ao usuário autenticado.
+- `TaskRepository` concentra todas as operações `db.tarefa`.
+- O `userId` usado nas operações vem exclusivamente do JWT.
+- Tarefas de outros usuários são tratadas como inexistentes.
+
+### Formato da tarefa
+
+```json
+{
+  "id": "uuid",
+  "title": "Estudar TypeScript",
+  "description": "Revisar a camada Service",
+  "status": "pendente",
+  "userId": "uuid-do-usuario"
+}
+```
+
+O campo `status` permanece uma string livre porque o schema Prisma não define enumeração.
+
+### Endpoints
+
+Todas as rotas exigem `Authorization: Bearer <token-jwt>`.
+
+| Método | Rota | Corpo | Sucesso | Finalidade |
+| --- | --- | --- | --- | --- |
+| `POST` | `/tasks` | `title`, `description`, `status` | `201` + tarefa | criar uma tarefa para o usuário autenticado |
+| `GET` | `/tasks` | nenhum | `200` + lista | listar somente as tarefas do usuário |
+| `GET` | `/tasks/:id` | nenhum | `200` + tarefa | consultar uma tarefa do usuário |
+| `PUT` | `/tasks/:id` | `title`, `description`, `status` | `200` + tarefa | atualizar integralmente os campos editáveis |
+| `DELETE` | `/tasks/:id` | nenhum | `204` | excluir uma tarefa do usuário |
+
+Corpo de criação e atualização:
+
+```json
+{
+  "title": "Estudar TypeScript",
+  "description": "Revisar a camada Service",
+  "status": "pendente"
+}
+```
+
+`title`, `description` e `status` são obrigatórios e não podem ser strings vazias. Um identificador malformado retorna `400`.
+
+Quando a tarefa não existe ou pertence a outro usuário:
+
+```http
+404 Not Found
+```
+
+```json
+{
+  "message": "Tarefa não encontrada"
+}
+```
+
+### Testes
+
+Os testes de `TaskService` cobrem:
+
+- criação e normalização;
+- listagem restrita ao proprietário;
+- consulta individual;
+- atualização;
+- exclusão;
+- bloqueio de consulta, atualização e exclusão por outro usuário.
+
 ---
 
-Este documento combina o diagnóstico histórico, o plano de refatoração e o estado implementado do projeto. Funcionalidades de tarefas continuam fora da API.
+Este documento combina o diagnóstico histórico, o plano de refatoração e o estado implementado do projeto, incluindo o CRUD autenticado de tarefas.

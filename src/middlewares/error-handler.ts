@@ -4,6 +4,7 @@ import { AppError, type AppErrorCode } from '../errors/app-error.js'
 const statusByErrorCode: Record<AppErrorCode, number> = {
   VALIDATION_ERROR: 400,
   USER_NOT_FOUND: 404,
+  TASK_NOT_FOUND: 404,
   INVALID_CREDENTIALS: 401,
   EMAIL_ALREADY_EXISTS: 409,
 }
